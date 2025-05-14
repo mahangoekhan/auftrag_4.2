@@ -1,0 +1,4 @@
+FROM nginx:latest
+
+# Richtiger Ordnername angepasst!
+COPY web/ /usr/share/nginx/html/
