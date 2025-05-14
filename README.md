@@ -234,10 +234,14 @@ redis             alpine        9d8fa9aa0e5b  3 weeks ago    27.5MB
 
 ---
 
-📊 Diagramm der Containerstruktur
-pgsql
-Kopieren
-Bearbeiten
+> Bei Fragen oder Problemen kannst du `docker compose --help` ausführen oder in der offiziellen [Compose-Dokumentation](https://docs.docker.com/compose/) nachlesen.
+
+
+---
+
+## 📊 Diagramm der Containerstruktur
+
+```
                +-------------------+            +--------------------+
                |     Web-App       |            |       Redis        |
                |-------------------|            |--------------------|
@@ -247,90 +251,72 @@ Bearbeiten
                | ↧ Port Mapping ↧               |                    |
                | Host: localhost:8000           | Netzwerk: default  |
                +-------------------+            +--------------------+
-Alle Container befinden sich im gleichen virtuellen Docker-Netzwerk (composetest_default), das automatisch von Docker Compose erstellt wird.
+```
 
-🧩 Beschreibung der verwendeten Container
-1. Web-Container (Flask-App)
-Funktion: Stellt eine kleine Webanwendung bereit.
+Alle Container befinden sich im gleichen virtuellen Docker-Netzwerk (`composetest_default`), das automatisch von Docker Compose erstellt wird.
 
-Image: Wird aus dem Dockerfile im Projektordner gebaut.
+---
 
-Technologien: Python, Flask, Redis-Client
+## 🧩 Beschreibung der verwendeten Container
 
-Ports:
+### 1. Web-Container (Flask-App)
+- **Funktion:** Stellt eine kleine Webanwendung bereit.
+- **Image:** Wird aus dem `Dockerfile` gebaut.
+- **Technologien:** Python, Flask, Redis-Client
+- **Ports:** 5000 intern → 8000 am Host
+- **Kommunikation:** Verbindet sich mit dem Redis-Container über Hostnamen `redis`.
 
-Intern (im Container): 5000
+### 2. Redis-Container
+- **Funktion:** Key-Value-Datenbank zur Zählung der Seitenaufrufe.
+- **Image:** `redis:alpine`
+- **Port:** 6379 (Standard)
+- **Besonderheit:** In-Memory-Datenbank, blitzschnell, ideal für Caching & Zähler.
 
-Extern (am Host): 8000 (weitergeleitet mit ports: "8000:5000")
+---
 
-Kommunikation: Verbindet sich mit dem Redis-Container über den Hostnamen redis.
+## ❓ Was ist Redis?
 
-2. Redis-Container
-Funktion: Key-Value-Datenbank zur Zählung der Seitenaufrufe.
+**Redis** = Remote Dictionary Server – eine blitzschnelle In-Memory-Datenbank.
 
-Image: Offizielles Image redis:alpine von Docker Hub.
+### Eigenschaften:
+- Speichert Daten im RAM
+- Extrem schnell
+- Unterstützt Strings, Listen, Hashes, Sets, u.v.m.
+- Verwendet für: Caching, Zähler, Sessions, etc.
 
-Port: 6379 (Standardport für Redis)
-
-Besonderheit: Läuft „standalone“ ohne eigene Persistenz (Speicherung bei Neustart verloren, außer Volumes werden verwendet).
-
-❓ Was ist Redis?
-Redis steht für Remote Dictionary Server und ist eine In-Memory-Datenbank, die Key-Value-Paare speichert.
-
-Eigenschaften:
-Extrem schnell (Daten im RAM)
-
-Unterstützt Datentypen wie Strings, Listen, Hashes, Sets
-
-Wird oft verwendet für:
-
-Caching
-
-Session-Speicherung
-
-Zähler (wie in deiner App)
-
-Beispiel aus deiner Anwendung:
-python
-Kopieren
-Bearbeiten
+### Beispiel:
+```python
 cache = redis.Redis(host='redis', port=6379)
 count = cache.incr('hits')
-incr('hits') erhöht den Zähler hits bei jedem Aufruf
+```
+Jeder Seitenaufruf erhöht den `hits`-Zähler.
 
-Redis speichert den aktuellen Zählerwert im RAM
+---
 
-Ideal für einfache, schnelle Zugriffe
+## 🌐 Welche Ports werden genutzt?
 
-🌐 Welche Ports werden genutzt?
-Komponente	Port im Container	Port am Host	Zweck
-Flask-App	5000	8000	Zugriff auf die Web-App
-Redis	6379	nicht freigegeben	Interner Zugriff durch Flask-App
+| Komponente | Port im Container | Port am Host | Zweck                    |
+|------------|-------------------|--------------|---------------------------|
+| Flask-App  | 5000              | 8000         | Zugriff auf Webanwendung |
+| Redis      | 6379              | -            | Intern für Flask verfügbar|
 
-Beispiel aus compose.yaml:
-yaml
-Kopieren
-Bearbeiten
-  web:
-    ports:
-      - "8000:5000"
-Bedeutet: localhost:8000 öffnet den Port 5000 im web-Container.
+---
 
-Der Redis-Container braucht keinen veröffentlichten Port, da nur intern genutzt.
+## ⚙️ Bedeutung von `ENV` im Dockerfile
 
-⚙️ Was ist die Bedeutung von ENV im Dockerfile?
-ENV im Dockerfile definiert Umgebungsvariablen, die beim Bauen des Images und zur Laufzeit des Containers verfügbar sind.
+`ENV` definiert Umgebungsvariablen, die beim Build & Laufzeit gelten.
 
-In deinem Dockerfile:
-dockerfile
-Kopieren
-Bearbeiten
+### In deinem Dockerfile:
+```dockerfile
 ENV FLASK_APP=app.py
 ENV FLASK_RUN_HOST=0.0.0.0
-Erklärung:
-Variable	Bedeutung
-FLASK_APP=app.py	Gibt Flask an, welches Python-File die App enthält. Ohne das müsste man z. B. flask run -app app.py tippen.
-FLASK_RUN_HOST=0.0.0.0	Macht den Flask-Server von außen zugänglich, da 127.0.0.1 nur internen Zugriff erlaubt.
+```
 
-Vorteil:
-Diese Variablen machen das Verhalten flexibel und konfigurierbar, ohne den Code zu ändern.
+| Variable         | Bedeutung                                                                 |
+|------------------|---------------------------------------------------------------------------|
+| `FLASK_APP`      | Gibt an, welche Datei Flask starten soll                                  |
+| `FLASK_RUN_HOST` | Erlaubt Zugriff von außerhalb (nicht nur localhost) → wichtig für Docker! |
+
+Damit wird Flask korrekt konfiguriert, ohne dass man bei jedem Start extra Optionen setzen muss.
+
+---
